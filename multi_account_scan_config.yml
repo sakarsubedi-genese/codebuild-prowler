@@ -34,12 +34,12 @@ phases:
                 test "$(jobs | wc -l)" -ge $PARALLEL_ACCOUNTS && wait || true
                 {
                     echo "Scanning account $accountId"
-                    prowler $PROWLER_OPTIONS --role arn:$AWS_PARTITION:iam::$accountId:role/service-role/$PROWLER_ROLE $STS_ENDPOINT
+                    prowler $PROWLER_OPTIONS --role arn:$AWS_PARTITION:iam::$accountId:role/$PROWLER_ROLE $STS_ENDPOINT
                 } &
             done
         else
             echo "Running single account scan."
-            prowler $PROWLER_OPTIONS --role arn:$AWS_PARTITION:iam::$AWS_ACCOUNT_ID:role/service-role/$PROWLER_ROLE $STS_ENDPOINT
+            prowler $PROWLER_OPTIONS --role arn:$AWS_PARTITION:iam::$AWS_ACCOUNT_ID:role/$PROWLER_ROLE $STS_ENDPOINT
         fi
 
         wait
