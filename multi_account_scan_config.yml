@@ -8,46 +8,38 @@ phases:
       - echo "Installing Prowler and dependencies..."
       - pip3 install prowler
       - prowler -v
+      - mkdir -p output
 
   build:
     commands:
       - |
-        if [[ $AWS_REGION =~ 'gov' ]]; then
-            STS_ENDPOINT='--sts-endpoint-region us-gov-west-1'
-        fi
+        export OUTPUT_FORMATS="csv json-ocsf html"
+        export TIMESTAMP=$(date +%B-%Y)
+        mkdir -p output/$TIMESTAMP
 
-        if [[ $MULTI_ACCOUNT_SCAN = 'true' ]]; then
-            echo "Running multi-account scan."
+        echo "Using account list override: $MULTI_ACCOUNT_LIST_OVERRIDE"
+        account_list=$MULTI_ACCOUNT_LIST_OVERRIDE
 
-            if [[ $MULTI_ACCOUNT_LIST_OVERRIDE != '' ]]; then
-                echo "Using account overrides."    
-                account_list=$MULTI_ACCOUNT_LIST_OVERRIDE
-            else
-                echo "Using accounts from aws organizations." 
-                account_list=$(aws organizations list-accounts --query 'Accounts[?Status==`ACTIVE`].Id' --output text)
-            fi
-            
-            echo "Using accounts: $account_list"
+        PARALLEL_ACCOUNTS=8  # You can tune this based on compute specs (see guidance below)
 
-            PARALLEL_ACCOUNTS=3
-            for accountId in $account_list; do
-                test "$(jobs | wc -l)" -ge $PARALLEL_ACCOUNTS && wait || true
-                {
-                    echo "Scanning account $accountId"
-                    prowler $PROWLER_OPTIONS --role arn:$AWS_PARTITION:iam::$accountId:role/$PROWLER_ROLE $STS_ENDPOINT
-                } &
-            done
-        else
-            echo "Running single account scan."
-            prowler $PROWLER_OPTIONS --role arn:$AWS_PARTITION:iam::$AWS_ACCOUNT_ID:role/$PROWLER_ROLE $STS_ENDPOINT
-        fi
+        for accountId in $account_list; do
+            test "$(jobs | wc -l)" -ge $PARALLEL_ACCOUNTS && wait || true
+            {
+                echo "Scanning account $accountId"
+                prowler aws --output $OUTPUT_FORMATS --output-file-format single \
+                  --role arn:$AWS_PARTITION:iam::$accountId:role/$PROWLER_ROLE \
+                  --output-path output/$TIMESTAMP/$accountId
+            } &
+        done
 
         wait
 
   post_build:
     commands:
-      - echo "Uploading reports to S3..."
-      - aws s3 cp --exclude "*" --include "*.ocsf.json" output/ s3://$BUCKET_REPORT/ocsf-json/ --recursive
-      - aws s3 cp --exclude "*" --include "*.json" --exclude "*.ocsf.json" --exclude "*.asff.json" output/ s3://$BUCKET_REPORT/json/ --recursive
-      - aws s3 cp --exclude "*" --include "*.asff.json" output/ s3://$BUCKET_REPORT/asff-json/ --recursive
+      - echo "Zipping all outputs..."
+      - cd output && zip -r $TIMESTAMP.zip $TIMESTAMP && cd -
+
+      - echo "Uploading to S3..."
+      - aws s3 cp output/$TIMESTAMP.zip s3://$BUCKET_REPORT/$TIMESTAMP/
+
       - echo "Done!"
