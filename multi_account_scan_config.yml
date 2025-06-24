@@ -26,9 +26,9 @@ phases:
             test "$(jobs | wc -l)" -ge $PARALLEL_ACCOUNTS && wait || true
             {
                 echo "Scanning account $accountId"
-                prowler aws --output $OUTPUT_FORMATS --output-file-format single \
+                prowler aws --output-formats $OUTPUT_FORMATS \
                   --role arn:$AWS_PARTITION:iam::$accountId:role/$PROWLER_ROLE \
-                  --output-path output/$TIMESTAMP/$accountId
+                  --output-directory output/$TIMESTAMP/$accountId
             } &
         done
 
