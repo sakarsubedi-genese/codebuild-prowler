@@ -20,7 +20,7 @@ phases:
         echo "Using account list override: $MULTI_ACCOUNT_LIST_OVERRIDE"
         account_list=$MULTI_ACCOUNT_LIST_OVERRIDE
 
-        PARALLEL_ACCOUNTS=8  # You can tune this based on compute specs (see guidance below)
+        PARALLEL_ACCOUNTS=9  # You can tune this based on compute specs (see guidance below)
 
         for accountId in $account_list; do
             test "$(jobs | wc -l)" -ge $PARALLEL_ACCOUNTS && wait || true
