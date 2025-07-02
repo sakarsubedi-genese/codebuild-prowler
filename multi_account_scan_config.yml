@@ -28,6 +28,7 @@ phases:
                 echo "Scanning account $accountId"
                 prowler aws --output-formats $OUTPUT_FORMATS \
                   --role arn:$AWS_PARTITION:iam::$accountId:role/$PROWLER_ROLE \
+                  --status FAIL MANUAL \
                   --output-directory output/$TIMESTAMP/$accountId
             } &
         done
